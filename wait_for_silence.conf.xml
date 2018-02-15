@@ -1,0 +1,8 @@
+<configuration name="wait_for_silence.conf" description="mod_wait_for_silence configuration">
+	<settings>
+	    <param name="silence_threshold" value="200"/>
+		<param name="silence_hits" value="125"/>
+		<param name="listen_hits" value="15"/>
+		<param name="timeout_ms" value="60000"/>
+	</settings>
+</configuration>
