@@ -174,7 +174,7 @@ static wait_for_silence_frame_analysis_t wait_for_silence_analyze_frame(const sw
 
 static switch_bool_t wait_for_silence_callback(switch_media_bug_t *bug, void *user_data, switch_abc_type_t type)
 {
-	if (type != SWITCH_ABC_TYPE_READ)
+	if (type != SWITCH_ABC_TYPE_READ_REPLACE)
 	{
 		return SWITCH_TRUE;
 	}
@@ -188,20 +188,9 @@ static switch_bool_t wait_for_silence_callback(switch_media_bug_t *bug, void *us
 
 	switch_core_session_t *session = switch_core_media_bug_get_session(bug);
 	switch_bool_t complete = SWITCH_FALSE;
+	switch_frame_t* frame = switch_core_media_bug_get_read_replace_frame(bug);
 
-	uint8_t data[SWITCH_RECOMMENDED_BUFFER_SIZE];
-	switch_frame_t frame = { 0 };
-
-	frame.data = data;
-	frame.buflen = SWITCH_RECOMMENDED_BUFFER_SIZE;
-
-	if (switch_core_media_bug_read(bug, &frame, SWITCH_FALSE) != SWITCH_STATUS_SUCCESS)
-	{
-		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "wait_for_silence: read frame failed.\n");
-		return SWITCH_TRUE;
-	}
-
-	if (frame.samples == 0)
+	if (frame->samples == 0)
 	{
 		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "wait_for_silence: frame contains no samples.\n");
 		return SWITCH_TRUE;
@@ -213,7 +202,7 @@ static switch_bool_t wait_for_silence_callback(switch_media_bug_t *bug, void *us
 
 		if (wfs->sample_count <= 0)
 		{
-			switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "wait_for_silence: TIMEOUT\n");						
+			switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "wait_for_silence: TIMEOUT\n");
 			switch_channel_set_variable(wfs->channel, "wait_for_silence_timeout", "true");
 			switch_channel_set_variable_printf(wfs->channel, "wait_for_silence_listenhits", "%d", wfs->listening);
 			switch_channel_set_variable_printf(wfs->channel, "wait_for_silence_silence_hits", "%d", wfs->silence_hits);
@@ -222,7 +211,7 @@ static switch_bool_t wait_for_silence_callback(switch_media_bug_t *bug, void *us
 		}
 	}
 
-	wait_for_silence_frame_analysis_t frame_analysis = wait_for_silence_analyze_frame(session, &frame, &wfs->read_impl, wfs->silence_threshold);
+	wait_for_silence_frame_analysis_t frame_analysis = wait_for_silence_analyze_frame(session, frame, &wfs->read_impl, wfs->silence_threshold);
 
 	if (frame_analysis.frame_type == VOICED)
 	{
@@ -319,7 +308,7 @@ static switch_status_t wait_for_silence_start(switch_core_session_t *session, ui
 		switch_core_session_set_read_codec(session, &wfs->read_codec);
 	}
 
-	if (switch_core_media_bug_add(session, "wait_for_silence", NULL, wait_for_silence_callback, wfs, 0, SMBF_READ_STREAM, &bug) != SWITCH_STATUS_SUCCESS)
+	if (switch_core_media_bug_add(session, "wait_for_silence", NULL, wait_for_silence_callback, wfs, 0, SMBF_READ_REPLACE, &bug) != SWITCH_STATUS_SUCCESS)
 	{
 		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_ERROR, "Cannot attach bug\n");
 		return SWITCH_STATUS_FALSE;
@@ -378,7 +367,7 @@ SWITCH_STANDARD_API(wait_for_silence_api_main)
 
 	channel = switch_core_session_get_channel(wfs_session);
 	bug = (switch_media_bug_t *) switch_channel_get_private(channel, "_wait_for_silence_bug_");
-	
+
 	if (bug)
 	{
 		if (strncasecmp(command, "stop", sizeof("stop") - 1) == 0)
@@ -392,7 +381,7 @@ SWITCH_STANDARD_API(wait_for_silence_api_main)
 		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_WARNING, "wait_for_silence: already running on channel.\n");
 		goto end;
 	}
-	
+
 	if (strncasecmp(command, "start", sizeof("start") - 1) == 0)
 	{
 		uint32_t silence_threshold = globals.silence_threshold;
