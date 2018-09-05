@@ -1,8 +1,14 @@
 <configuration name="wait_for_silence.conf" description="mod_wait_for_silence configuration">
 	<settings>
-	    <param name="silence_threshold" value="200"/>
+		<!-- max energy score to be considered silence -->
+		<param name="silence_threshold" value="200"/>
+		<!-- number of consecutive silent audio frames to trigger silence detected -->
 		<param name="silence_hits" value="125"/>
+		<!-- number of consecutive noisy audio frames required before starting detecting silence -->
 		<param name="listen_hits" value="15"/>
+		<!-- total number of milliseconds to perform silence detection -->
 		<param name="timeout_ms" value="60000"/>
+		<!-- debug: set to 1 to get more debug information -->
+		<param name="debug" value="0"/>
 	</settings>
 </configuration>

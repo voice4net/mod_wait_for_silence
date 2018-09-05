@@ -14,6 +14,8 @@ static struct {
 	uint32_t silence_hits;
 	uint32_t listen_hits;
 	uint32_t timeout_ms;
+	// if 1, print more debugging info
+	uint32_t debug;
 } globals;
 
 static switch_xml_config_item_t instructions[] = {
@@ -49,6 +51,14 @@ static switch_xml_config_item_t instructions[] = {
 		(void *) 60000,
 		NULL, NULL, NULL),
 
+	SWITCH_CONFIG_ITEM(
+		"debug",
+		SWITCH_CONFIG_INT,
+		CONFIG_RELOADABLE,
+		&globals.debug,
+		(void *) 0,
+		NULL, NULL, NULL),
+
 	SWITCH_CONFIG_ITEM_END()
 };
 
@@ -56,7 +66,8 @@ static switch_status_t do_config(switch_bool_t reload)
 {
 	memset(&globals, 0, sizeof(globals));
 
-	if (switch_xml_config_parse_module_settings("wait_for_silence.conf", reload, instructions) != SWITCH_STATUS_SUCCESS) {
+	if (switch_xml_config_parse_module_settings("wait_for_silence.conf", reload, instructions) != SWITCH_STATUS_SUCCESS)
+	{
 		return SWITCH_STATUS_FALSE;
 	}
 
@@ -124,6 +135,21 @@ typedef struct wait_for_silence_frame_analysis_t
 	double energy;
 	double decibels;
 } wait_for_silence_frame_analysis_t;
+
+static const char* wait_for_silence_frame_classifier2str(wait_for_silence_frame_classifier classifier)
+{
+	switch (classifier)
+	{
+		case SILENCE:
+			return "SILENCE";
+		case VOICED:
+			return "VOICED";
+		case BADFRAME:
+			return "BADFRAME";
+	}
+
+	return "UNKNOWN";
+}
 
 static wait_for_silence_frame_analysis_t wait_for_silence_analyze_frame(const switch_core_session_t *session, const switch_frame_t *f, const switch_codec_implementation_t *codec, uint32_t silence_threshold)
 {
@@ -228,9 +254,19 @@ static switch_bool_t wait_for_silence_callback(switch_media_bug_t *bug, void *us
 			complete = SWITCH_TRUE;
 			goto end;
 		}
+
+		if (globals.debug == 1)
+		{
+			switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "wait_for_silence: frame_type=SILENCE;energy=%.2f;score=%d;decibels=%.2f;silence_hits=%u;remaining=%u;\n", frame_analysis.energy, frame_analysis.score, frame_analysis.decibels, globals.silence_hits - wfs->silence_hits, wfs->silence_hits);
+		}
 	}
 	else
 	{
+		if (globals.debug == 1)
+		{
+			switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "wait_for_silence: frame_type=%s;energy=%.2f;score=%d;decibels=%.2f\n", wait_for_silence_frame_classifier2str(frame_analysis.frame_type), frame_analysis.energy, frame_analysis.score, frame_analysis.decibels);
+		}
+
 		wfs->silence_hits = wfs->org_silence_hits;
 	}
 
